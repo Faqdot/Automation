@@ -386,25 +386,6 @@ After completing this repository, you should be able to:
 - Docker
 - Jenkins
 - Ansible
-
----
-
-## 🤝 Contributions
-
-Suggestions, improvements, and practical lab contributions are welcome.
-
-If you find this repository useful, consider giving it a ⭐.
-
----
-
-## ⚠️ Disclaimer
-
-This repository is intended for educational and practical learning purposes.
-
-Always test scripts in a safe lab environment before using them on production servers. Review commands, permissions, and destructive operations carefully.
-
----
-
 **Happy Learning! 🐧**
 
 *Learn Bash. Automate Linux. Build DevOps Skills.*
