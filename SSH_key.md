@@ -1,45 +1,58 @@
-# Set Up SSH Key Authentication for GitHub on Linux
+# GitHub SSH Key Authentication on Linux
 
-This guide explains how to configure SSH key authentication on a Linux
-system so you can connect to GitHub without entering your GitHub
-username and password for every Git operation.
+This guide documents how to configure SSH authentication between a Linux
+computer and GitHub, use an SSH remote URL, and push a local Git
+repository.
 
-## 1. Check for an existing SSH key
+The example repository used here is `Faqdot/Automation`, and the local
+branch is `Master`.
 
-Open a terminal and run:
+## 1. Check for existing SSH keys
 
-``` bash
-ls -la ~/.ssh
-```
-
-Look for an existing Ed25519 key pair:
-
--   `id_ed25519` --- private key
--   `id_ed25519.pub` --- public key
-
-If you already have a key you want to use, you can skip to **Step 3**.
-Do not overwrite an existing key unless you are sure you no longer need
-it.
-
-## 2. Generate a new SSH key
-
-Use the email address associated with your GitHub account:
+List the SSH directory:
 
 ``` bash
-ssh-keygen -t ed25519 -C "your-email@example.com"
+ls -la ~/.ssh/
 ```
 
-When asked where to save the key, press **Enter** to use the default
-path:
+The example system already had these files:
 
-``` text
-/home/your-user/.ssh/id_ed25519
+-   `id_ed25519` and `id_ed25519.pub` --- an Ed25519 private/public key
+    pair
+-   `github` --- an additional private key file
+-   `config` --- SSH client configuration
+-   `known_hosts` --- previously trusted SSH hosts
+
+Use the key that your SSH configuration is set up to use. Do not
+generate a new key if you already have a working one.
+
+## 2. Display and register the public key
+
+For the default Ed25519 key, display the public key:
+
+``` bash
+cat ~/.ssh/id_ed25519.pub
 ```
 
-Choose a strong passphrase when prompted. A passphrase helps protect
-your private key if someone obtains the file.
+If your SSH configuration uses the key named `github`, display its
+matching public key instead (if present):
 
-## 3. Start the SSH agent and add your key
+``` bash
+cat ~/.ssh/github.pub
+```
+
+Copy the complete public-key line. In GitHub:
+
+1.  Open [GitHub SSH and GPG keys](https://github.com/settings/keys).
+2.  Select **New SSH key**.
+3.  Give it a recognizable title, such as `Linux laptop`.
+4.  Choose **Authentication Key**.
+5.  Paste the public key and save it.
+
+**Security:** Only add or share the public key (`.pub`). Never share
+your private key, such as `~/.ssh/id_ed25519` or `~/.ssh/github`.
+
+## 3. Start the SSH agent and load the key
 
 Start the agent:
 
@@ -47,38 +60,23 @@ Start the agent:
 eval "$(ssh-agent -s)"
 ```
 
-Add the private key to the agent:
+Load the key you intend to use. For example:
 
 ``` bash
 ssh-add ~/.ssh/id_ed25519
 ```
 
-If you used a different filename, replace `id_ed25519` with that
-filename.
-
-## 4. Add the public key to GitHub
-
-Display your public key:
+If your SSH configuration uses `~/.ssh/github`, load that key instead:
 
 ``` bash
-cat ~/.ssh/id_ed25519.pub
+ssh-add ~/.ssh/github
 ```
 
-Copy the entire output. It should begin with `ssh-ed25519`.
+Enter the key's passphrase when prompted. This is the passphrase
+protecting your local private key; it is not your GitHub account
+password.
 
-Then:
-
-1.  Sign in to GitHub.
-2.  Open [GitHub SSH and GPG keys](https://github.com/settings/keys).
-3.  Select **New SSH key**.
-4.  Enter a descriptive title, such as `Linux laptop`.
-5.  Set the key type to **Authentication Key**.
-6.  Paste the public key and select **Add SSH key**.
-
-**Security note:** Share only the `.pub` public key. Never upload or
-share the private key file (`~/.ssh/id_ed25519`).
-
-## 5. Test the SSH connection
+## 4. Test SSH authentication
 
 Run:
 
@@ -86,34 +84,31 @@ Run:
 ssh -T git@github.com
 ```
 
-The first connection may ask you to confirm GitHub's host fingerprint.
-Verify it against GitHub's published SSH key fingerprints before
+On first connection, SSH may ask you to verify GitHub's host
+fingerprint. Check it against GitHub's published fingerprints before
 accepting.
 
-A successful authentication message looks similar to:
+A successful authentication response looks similar to:
 
 ``` text
 Hi YOUR-GITHUB-USERNAME! You've successfully authenticated, but GitHub does not provide shell access.
 ```
 
-This message means SSH authentication works. It does not provide an
-interactive shell.
+## 5. Configure the repository to use SSH
 
-## 6. Change an existing Git remote from HTTPS to SSH
-
-From inside your local repository, inspect the current remote:
+Go to your local repository:
 
 ``` bash
-git remote -v
+cd ~/Automation
 ```
 
-For the repository `Faqdot/Automation`, set the SSH URL:
+Set the SSH remote URL:
 
 ``` bash
 git remote set-url origin git@github.com:Faqdot/Automation.git
 ```
 
-Verify the change:
+Verify it:
 
 ``` bash
 git remote -v
@@ -126,18 +121,39 @@ origin  git@github.com:Faqdot/Automation.git (fetch)
 origin  git@github.com:Faqdot/Automation.git (push)
 ```
 
-## 7. Fetch, pull, and push
+If the URL starts with `https://`, the repository is still using HTTPS.
+Change it with the command above.
 
-Fetch remote references:
+## 6. Fetch and inspect remote branches
 
 ``` bash
 git fetch origin
+git branch -a
 ```
 
-List local and remote-tracking branches:
+To check the branch references directly on GitHub:
 
 ``` bash
-git branch -a
+git ls-remote --heads origin
+```
+
+If the remote repository has no branches yet, the command may return no
+output until the first push creates one.
+
+## 7. Commit and push your work
+
+Check the current branch and working-tree status:
+
+``` bash
+git status
+git branch
+```
+
+Stage and commit files as needed:
+
+``` bash
+git add README.md SSH_key.md
+git commit -m "Document GitHub SSH authentication"
 ```
 
 Push the current branch and set its upstream:
@@ -146,70 +162,97 @@ Push the current branch and set its upstream:
 git push -u origin HEAD
 ```
 
-For future updates, use:
+For the example `Master` branch, this is equivalent to:
 
 ``` bash
-git pull
+git push -u origin Master
+```
+
+A successful first push can show output similar to:
+
+``` text
+To github.com:Faqdot/Automation.git
+ * [new branch]      Master -> Master
+branch 'Master' set up to track 'origin/Master'.
+```
+
+After the upstream is configured, future updates can usually be pushed
+with:
+
+``` bash
 git push
 ```
 
-If the GitHub repository is empty, create and commit at least one file
-before the first push. For example:
+## 8. Troubleshooting
 
-``` bash
-echo "# Automation" > README.md
-git add README.md
-git commit -m "Initial commit"
-git push -u origin HEAD
+### Git asks for a key passphrase
+
+A prompt such as:
+
+``` text
+Enter passphrase for key '/home/your-user/.ssh/github':
 ```
 
-## Troubleshooting
+means SSH is using an encrypted private key. Enter the passphrase you
+created for that key. This is normal and does not mean Git is asking for
+your GitHub username or password.
+
+To avoid entering it repeatedly during an agent session, start
+`ssh-agent` and add the key:
+
+``` bash
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/github
+```
+
+Use the actual private-key filename configured on your system.
 
 ### `Permission denied (publickey)`
 
 Check that:
 
--   The public key was added to the correct GitHub account.
--   The SSH agent is running and the key is loaded (`ssh-add -l`).
--   Your Git remote uses the SSH URL (`git remote -v`).
--   You are connecting as `git`, for example `git@github.com`.
+-   The matching public key is added to the correct GitHub account.
+-   SSH is using the matching private key.
+-   The key is loaded in the agent (`ssh-add -l`).
+-   The remote URL uses SSH (`git remote -v`).
 
-To load the key again:
-
-``` bash
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_ed25519
-```
-
-### No remote branches appear
-
-Check whether the GitHub repository has branches:
+For detailed connection diagnostics:
 
 ``` bash
-git ls-remote --heads origin
+ssh -vT git@github.com
 ```
 
-If this prints no branch references, the remote repository may be empty
-or may not have any branches yet. Confirm the repository contents and
-permissions on GitHub.
+Do not share diagnostic output without checking it for private paths or
+other sensitive details.
 
-### Check the SSH remote URL
+### The upstream branch is gone
+
+If Git reports that the upstream branch is gone, inspect the remote
+branches:
 
 ``` bash
-git remote get-url origin
+git fetch origin
+git branch -r
 ```
 
-For this example repository, it should be:
+If the remote branch exists and has the same name as your local branch,
+set the upstream:
 
-``` text
-git@github.com:Faqdot/Automation.git
+``` bash
+git branch --set-upstream-to=origin/Master Master
 ```
 
-## Useful references
+If the remote branch does not exist yet, push the local branch:
 
--   [GitHub: Connecting to GitHub with
+``` bash
+git push -u origin Master
+```
+
+## Useful GitHub documentation
+
+-   [Connecting to GitHub with
     SSH](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
--   [GitHub: Adding a new SSH key to your GitHub
+-   [Adding a new SSH key to your GitHub
     account](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
--   [GitHub: Testing your SSH
+-   [Testing your SSH
     connection](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection)
